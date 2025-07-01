@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Fiche bâtiment</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 2rem auto; }
+    label { display: block; margin-top: 1rem; }
+    input, textarea { width: 100%; padding: 0.5rem; margin-top: 0.2rem; }
+    button { margin-top: 1.5rem; padding: 0.7rem 1.5rem; font-size: 1rem; }
+    #message { margin-top: 1rem; color: green; }
+    #error { margin-top: 1rem; color: red; }
+  </style>
+</head>
+<body>
+
+  <h1>Fiche bâtiment</h1>
+
+  <form id="form">
+    <label>
+      ID (non modifiable) :
+      <input type="text" id="id" disabled />
+    </label>
+
+    <label>
+      Commentaire région :
+      <textarea id="commentaire" rows="4" placeholder="Entrez un commentaire..."></textarea>
+    </label>
+
+    <button type="submit">Enregistrer</button>
+  </form>
+
+  <div id="message"></div>
+  <div id="error"></div>
+
+  <script>
+    const featureServerURL = "https://services5.arcgis.com/7RhKUl41LEYtc4NA/arcgis/rest/services/Localisation_site_AFPA_WFL1/FeatureServer/2";
+
+    function getIdFromURL() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('id');
+    }
+
+    async function loadBuilding(id) {
+      const url = `${featureServerURL}/query?where=id='${id}'&outFields=*&f=json`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.features && data.features.length > 0) {
+        return data.features[0];
+      } else {
+        throw new Error("Bâtiment non trouvé");
+      }
+    }
+
+    async function updateComment(idObj, commentaire) {
+      const url = `${featureServerURL}/updateFeatures`;
+
+      const features = [{
+        attributes: {
+          OBJECTID: idObj,
+          Commentaire_région: commentaire
+        }
+      }];
+
+      const params = new URLSearchParams();
+      params.append('features', JSON.stringify(features));
+      params.append('f', 'json');
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+      });
+
+      const data = await res.json();
+      return data;
+    }
+
+    (async () => {
+      const id = getIdFromURL();
+      if (!id) {
+        document.getElementById('error').innerText = "Aucun paramètre 'id' trouvé dans l'URL";
+        return;
+      }
+
+      try {
+        const building = await loadBuilding(id);
+        const attr = building.attributes;
+
+        document.getElementById('id').value = attr.id;
+        document.getElementById('commentaire').value = attr.Commentaire_région || '';
+
+        const form = document.getElementById('form');
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          document.getElementById('message').innerText = '';
+          document.getElementById('error').innerText = '';
+
+          const newComment = document.getElementById('commentaire').value;
+          const objectId = attr.OBJECTID;
+
+          try {
+            const result = await updateComment(objectId, newComment);
+            if (result.updateResults && result.updateResults[0].success) {
+              document.getElementById('message').innerText = "Mise à jour réussie !";
+            } else {
+              throw new Error(JSON.stringify(result));
+            }
+          } catch (err) {
+            document.getElementById('error').innerText = err.message;
+          }
+        });
+
+      } catch (err) {
+        document.getElementById('error').innerText = err.message;
+      }
+    })();
+  </script>
+</body>
+</html>
