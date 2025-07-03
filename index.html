@@ -474,7 +474,16 @@
         const x = attr.REV_X || 0;
         const y = attr.REV_Y || 0;
         document.getElementById('lokimo-link').href = `https://v2.app.lokimo.ai/parcel/${id}`;
-        document.getElementById('googlemaps-link').href = `https://www.google.fr/maps/place/${label}/@${x},${y},551m`;
+        
+        // Garder l'URL Google Maps originale mais forcer l'ouverture dans un nouvel onglet
+        const googleMapsUrl = `https://www.google.fr/maps/place/${label}/@${x},${y},551m/`;
+        document.getElementById('googlemaps-link').href = googleMapsUrl;
+        
+        // Gestionnaire d'événements pour forcer l'ouverture dans un nouvel onglet
+        document.getElementById('googlemaps-link').addEventListener('click', function(e) {
+          e.preventDefault();
+          window.open(googleMapsUrl, '_blank', 'noopener,noreferrer');
+        });
 
         const form = document.getElementById('form');
         form.addEventListener('submit', async (e) => {
